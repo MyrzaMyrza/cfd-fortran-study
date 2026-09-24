@@ -1,75 +1,54 @@
-program 1d_thermal_conductivity
+program heat1d
   implicit none
-integer :: nx, nt   !целые цисла
-real :: alpha, dt   !вещественные числа
-real, parameter :: pi = 3.14159   !константа, менять нельзя
 
-real, allocate :: T(:)   !массив с неопределенным размером
+  !-----------------------------------------------------------------
+  ! Одномерная нестационарная теплопроводность, явная схема FTCS:
+  !
+  !     dT/dt = alpha * d2T/dx2 ,   x in [0, L]
+  !
+  ! Граничные условия (Dirichlet): T(0) = Thot, T(L) = Tcold
+  !-----------------------------------------------------------------
 
-allocate(T(nx))   !память под nx элементов
+  integer, parameter :: nx    = 21       ! число узлов сетки
+  integer, parameter :: nt    = 2000     ! число шагов по времени
+  real,    parameter :: L     = 1.0      ! длина стержня, м
+  real,    parameter :: alpha = 1.0e-4   ! коэфф. температуропроводности, м^2/с
+  real,    parameter :: Thot  = 100.0    ! температура на левом конце
+  real,    parameter :: Tcold = 0.0      ! температура на правом конце
 
-module heat_params
-	implicit none
-	real, parameter :: L = 1.0
-	integer, parameter :: nx = 21
-end module heat_params
+  real, dimension(nx) :: T, Tnew
+  real :: dx, dt, r
+  integer :: i, n
 
-program main
-	use heat_params
-	implicit none
-end program main
+  ! --- шаг сетки по пространству ---
+  dx = L / real(nx - 1)
 
-T(1) = 100.0
-T(nx) = 0.0
+  ! --- шаг по времени из условия устойчивости FTCS: r = alpha*dt/dx^2 <= 0.5 ---
+  r  = 0.4
+  dt = r * dx**2 / alpha
 
-end program 1d_thermal_conductivity
+  ! --- начальное условие: стержень холодный, кроме заданных концов ---
+  T      = 0.0
+  T(1)   = Thot
+  T(nx)  = Tcold
 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
-  ! Initial condition: u(x,0) = sin(pi*x)
-  do i = 1, nx
-    u(i) = sin(pi * (i - 1) * dx)
-  end do
-
-  ! Time-stepping loop
+  ! --- основной цикл по времени ---
   do n = 1, nt
-    ! Update interior points using finite difference method
     do i = 2, nx - 1
-      u_new(i) = u(i) + alpha * dt / dx**2 * (u(i + 1) - 2 * u(i) + u(i - 1))
+      Tnew(i) = T(i) + r * (T(i+1) - 2.0*T(i) + T(i-1))
     end do
 
-    ! Apply boundary conditions (Dirichlet)
-    u_new(1) = u(1)
-    u_new(nx) = u(nx)
+    Tnew(1)  = Thot     ! граничные условия неизменны во времени
+    Tnew(nx) = Tcold
 
-    ! Update the solution for the next time step
-    u = u_new
+    T = Tnew
   end do
 
-  ! Output the final temperature distribution
-  print *, "Final temperature distribution:"
+  ! --- вывод результата ---
+  print *, "r =", r, " dt =", dt, " с;  шагов:", nt
+  print *, "   x,        T(x)"
   do i = 1, nx
-    print *, (i - 1) * dx, u(i)
+    print '(F8.4, 4X, F10.4)', (i-1)*dx, T(i)
   end do
 
-end program 1d_thermal_conductivity
+end program heat1d
